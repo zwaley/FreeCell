@@ -75,8 +75,8 @@ class FreeCellGame {
             if (!cardData) return;
 
             if (this.selectedCard) {
-                if (this.canMove(this.selectedCard, cardData.location)) {
-                    this.makeMove(this.selectedCard, cardData.location);
+                if (this.canMoveSequence(this.selectedCard.sequence, cardData.location)) {
+                    this.makeSequenceMove(this.selectedCard, cardData.location);
                     this.selectedCard = null;
                     this.updateDisplay();
                 } else {
@@ -84,8 +84,23 @@ class FreeCellGame {
                     this.updateDisplay();
                 }
             } else {
-                if (this.isTopCard(cardData)) {
-                    this.selectedCard = cardData;
+                // 检查是否可以选择序列
+                if (cardData.location.type === 'tableau') {
+                    const { column, row } = cardData.location;
+                    const sequence = this.getValidSequence(column, row);
+                    
+                    this.selectedCard = {
+                        card: cardData.card,
+                        location: cardData.location,
+                        sequence: sequence
+                    };
+                    this.updateDisplay();
+                } else if (this.isTopCard(cardData)) {
+                    this.selectedCard = {
+                        card: cardData.card,
+                        location: cardData.location,
+                        sequence: [cardData.card]
+                    };
                     this.updateDisplay();
                 }
             }
@@ -96,8 +111,8 @@ class FreeCellGame {
         if (freeCell && this.selectedCard) {
             const index = parseInt(freeCell.id.split('-')[2]);
             const targetLocation = { type: 'freecell', index: index };
-            if (this.canMove(this.selectedCard, targetLocation)) {
-                this.makeMove(this.selectedCard, targetLocation);
+            if (this.canMoveSequence(this.selectedCard.sequence, targetLocation)) {
+                this.makeSequenceMove(this.selectedCard, targetLocation);
                 this.selectedCard = null;
                 this.updateDisplay();
             } else {
@@ -111,8 +126,8 @@ class FreeCellGame {
         if (foundationPile && this.selectedCard) {
             const index = parseInt(foundationPile.id.split('-')[1]);
             const targetLocation = { type: 'foundation', index: index };
-            if (this.canMove(this.selectedCard, targetLocation)) {
-                this.makeMove(this.selectedCard, targetLocation);
+            if (this.canMoveSequence(this.selectedCard.sequence, targetLocation)) {
+                this.makeSequenceMove(this.selectedCard, targetLocation);
                 this.selectedCard = null;
                 this.updateDisplay();
             } else {
@@ -126,8 +141,8 @@ class FreeCellGame {
         if (tableauColumn && this.selectedCard) {
             const index = parseInt(tableauColumn.id.split('-')[1]);
             const targetLocation = { type: 'tableau', column: index };
-            if (this.canMove(this.selectedCard, targetLocation)) {
-                this.makeMove(this.selectedCard, targetLocation);
+            if (this.canMoveSequence(this.selectedCard.sequence, targetLocation)) {
+                this.makeSequenceMove(this.selectedCard, targetLocation);
                 this.selectedCard = null;
                 this.updateDisplay();
             } else {
@@ -178,6 +193,63 @@ class FreeCellGame {
                 return this.foundations[index].length > 0;
         }
         return false;
+    }
+
+    // 检测从指定位置开始的有效序列
+    getValidSequence(column, startRow) {
+        const cards = this.tableau[column];
+        if (startRow >= cards.length) return [];
+        
+        const sequence = [cards[startRow]];
+        
+        for (let i = startRow + 1; i < cards.length; i++) {
+            const currentCard = cards[i];
+            const prevCard = cards[i - 1];
+            
+            // 检查是否符合降序且红黑交替
+            if (currentCard.value === prevCard.value - 1 && 
+                currentCard.color !== prevCard.color) {
+                sequence.push(currentCard);
+            } else {
+                break;
+            }
+        }
+        
+        return sequence;
+    }
+
+    // 计算最大可移动的牌数（基于空闲单元格和空列数）
+    getMaxMovableCards() {
+        const freeCells = this.freeCells.filter(cell => cell === null).length;
+        const emptyColumns = this.tableau.filter(col => col.length === 0).length;
+        
+        // 公式：(1 + 空闲单元格数) * 2^空列数
+        return (1 + freeCells) * Math.pow(2, emptyColumns);
+    }
+
+    // 检查序列是否可以移动到目标位置
+    canMoveSequence(sequence, targetLocation) {
+        if (sequence.length === 0) return false;
+        
+        // 只有移动到tableau列才允许序列移动
+        if (targetLocation.type !== 'tableau') {
+            return sequence.length === 1;
+        }
+        
+        // 检查序列长度是否超过最大可移动数
+        if (sequence.length > this.getMaxMovableCards()) {
+            return false;
+        }
+        
+        // 检查序列的第一张牌是否可以放到目标位置
+        const firstCard = sequence[0];
+        const targetColumn = this.tableau[targetLocation.column];
+        
+        if (targetColumn.length === 0) return true;
+        
+        const topCard = targetColumn[targetColumn.length - 1];
+        return firstCard.value === topCard.value - 1 && 
+               firstCard.color !== topCard.color;
     }
 
     canMove(card, targetLocation) {
@@ -243,6 +315,34 @@ class FreeCellGame {
 
         this.moveCount++;
         this.checkWin();
+    }
+
+    makeSequenceMove(selectedData, targetLocation) {
+        this.saveState();
+        
+        const { sequence, location } = selectedData;
+        
+        // 如果只有一张牌，使用原来的移动逻辑
+        if (sequence.length === 1) {
+            this.makeMove({ card: sequence[0], location: location }, targetLocation);
+            return;
+        }
+        
+        // 序列移动只能在tableau列之间进行
+        if (location.type === 'tableau' && targetLocation.type === 'tableau') {
+            // 从原列移除序列
+            for (let i = 0; i < sequence.length; i++) {
+                this.tableau[location.column].pop();
+            }
+            
+            // 添加到目标列
+            for (const card of sequence) {
+                this.tableau[targetLocation.column].push(card);
+            }
+            
+            this.moves++;
+            this.checkWin();
+        }
     }
 
     saveState() {
@@ -381,17 +481,23 @@ class FreeCellGame {
             <div class="card-suit">${suitSymbols[card.suit]}</div>
         `;
 
-        if (this.selectedCard && 
-            this.selectedCard.card === card && 
-            this.selectedCard.location.type === type) {
-            cardElement.classList.add('selected');
+        if (this.selectedCard) {
+            // 检查是否是选中序列中的卡牌
+            const isInSequence = this.selectedCard.sequence && 
+                this.selectedCard.sequence.includes(card);
+            
+            if (isInSequence || 
+                (this.selectedCard.card === card && 
+                 this.selectedCard.location.type === type)) {
+                cardElement.classList.add('selected');
+            }
         }
 
         return cardElement;
     }
 
     updateControls() {
-        document.getElementById('moveCount').textContent = this.moveCount;
+        document.getElementById('moveCount').textContent = this.moves;
         document.getElementById('undoBtn').disabled = this.gameHistory.length === 0;
     }
 
