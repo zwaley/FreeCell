@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>空当接龙 - FreeCell</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <header class="game-header">
+            <h1>空当接龙</h1>
+            <div class="controls">
+                <button id="newGameBtn" class="btn">新游戏</button>
+                <button id="undoBtn" class="btn" disabled>撤销</button>
+                <button id="hintBtn" class="btn">提示</button>
+            </div>
+        </header>
+
+        <div class="game-board">
+            <!-- 自由单元格（左上角） -->
+            <div class="free-cells">
+                <div class="free-cell" id="free-cell-0"></div>
+                <div class="free-cell" id="free-cell-1"></div>
+                <div class="free-cell" id="free-cell-2"></div>
+                <div class="free-cell" id="free-cell-3"></div>
+            </div>
+
+            <!-- 目标单元格（右上角） -->
+            <div class="foundation-piles">
+                <div class="foundation-pile" id="foundation-0" data-suit="hearts">♥</div>
+                <div class="foundation-pile" id="foundation-1" data-suit="diamonds">♦</div>
+                <div class="foundation-pile" id="foundation-2" data-suit="clubs">♣</div>
+                <div class="foundation-pile" id="foundation-3" data-suit="spades">♠</div>
+            </div>
+
+            <!-- 游戏列 -->
+            <div class="tableau">
+                <div class="tableau-column" id="tableau-0"></div>
+                <div class="tableau-column" id="tableau-1"></div>
+                <div class="tableau-column" id="tableau-2"></div>
+                <div class="tableau-column" id="tableau-3"></div>
+                <div class="tableau-column" id="tableau-4"></div>
+                <div class="tableau-column" id="tableau-5"></div>
+                <div class="tableau-column" id="tableau-6"></div>
+                <div class="tableau-column" id="tableau-7"></div>
+            </div>
+        </div>
+
+        <div class="game-stats">
+            <span>移动次数: <span id="moveCount">0</span></span>
+            <span>用时: <span id="timer">00:00</span></span>
+        </div>
+    </div>
+
+    <div id="winModal" class="modal">
+        <div class="modal-content">
+            <h2>恭喜！游戏胜利！</h2>
+            <p>用时: <span id="finalTime">00:00</span></p>
+            <p>移动次数: <span id="finalMoves">0</span></p>
+            <button id="playAgainBtn" class="btn">再玩一局</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
